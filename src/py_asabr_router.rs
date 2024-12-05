@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use a_sabr::{
     contact_manager::seg::SegmentationManager,
-    contact_plan::{asabr_file_lexer::FileLexer, from_asabr_lexer::ASABRContactPlan},
+    contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node::Node,
     node_manager::none::NoManagement,
     route_storage::cache::TreeCache,
@@ -34,36 +34,24 @@ fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID>
 #[pymethods]
 impl PyAsabrRouter {
     #[new]
-    fn new(contact_plan_filepath: &str) -> PyResult<Self> {
-        match FileLexer::new(contact_plan_filepath) {
-            Ok(mut lexer) => {
-                let mut contact_plan = ASABRContactPlan::new();
-                let res =
-                    contact_plan.parse::<NoManagement, SegmentationManager>(&mut lexer, None, None);
+    fn new(tvgutil_contact_plan_filepath: &str) -> PyResult<Self> {
+        let contact_plan =
+            TVGUtilContactPlan::parse::<SegmentationManager>(tvgutil_contact_plan_filepath);
 
-                match res {
-                    Ok((nodes, contacts)) => {
-                        //println!("Contacts:\n{:?}\nNodes:\n{:?}", contacts.len(), nodes.len());
-                        let nodes_id_map = make_nodes_id_map(&nodes);
-                        //println!("Node ID map: {:?}", nodes_id_map);
-                        let cache = Rc::new(RefCell::new(TreeCache::new(false, false, 10)));
+        match contact_plan {
+            Ok((nodes, contacts)) => {
+                let nodes_id_map = make_nodes_id_map(&nodes);
 
-                        let router = Spsn::new(nodes, contacts, cache, false);
-                        //println!("{:?}", router.pathfinding.get_multigraph());
+                let cache = Rc::new(RefCell::new(TreeCache::new(false, false, 10)));
+                let router = Spsn::new(nodes, contacts, cache, false);
 
-                        Ok(Self {
-                            nodes_id_map,
-                            router,
-                        })
-                    }
-                    Err(err) => Err(PyErr::new::<PyBaseException, _>(format!(
-                        "[A-SABR][ContactPlan] Parse error: {}",
-                        err
-                    ))),
-                }
+                Ok(Self {
+                    nodes_id_map,
+                    router,
+                })
             }
             Err(err) => Err(PyErr::new::<PyBaseException, _>(format!(
-                "[A-SABR][ContactPlan] Open error: {}",
+                "[A-SABR][ContactPlan] Parse error: {}",
                 err
             ))),
         }
@@ -98,8 +86,7 @@ impl PyAsabrRouter {
     }
 
     fn get_node_id(&self, node_name: &str) -> PyResult<NodeID> {
-        let canonical_node_name = node_name.replace(" ", "_");
-        let result = self.nodes_id_map.get(&canonical_node_name);
+        let result = self.nodes_id_map.get(node_name);
 
         if let Some(node_id) = result {
             Ok(*node_id)
