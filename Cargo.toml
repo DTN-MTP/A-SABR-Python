@@ -10,3 +10,6 @@ crate-type = ["cdylib"]
 [dependencies]
 a_sabr = { path = "../a-sabr" }
 pyo3 = { version = "0.22.6", features = ["extension-module"] }
+
+[features]
+contact_work_area = ["a_sabr/contact_work_area"]

@@ -1,24 +1,42 @@
 use pyo3::{exceptions::PyBaseException, prelude::*};
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::collections::HashMap;
 
 use a_sabr::{
-    contact_manager::seg::SegmentationManager,
+    bundle::Bundle,
+    contact_manager::{seg::SegmentationManager, ContactManager},
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node::Node,
     node_manager::none::NoManagement,
-    route_storage::cache::TreeCache,
-    routing::{aliases::SpsnMpt, spsn::Spsn},
+    routing::RoutingOutput,
     types::{Date, NodeID},
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
+
+mod distance_strategy;
+mod factory;
+mod pathfinding_strategy;
+mod routing_flavor;
+use distance_strategy::DistanceStrategy;
+use pathfinding_strategy::PathfindingStrategy;
+use routing_flavor::RoutingFlavor;
+
+trait GenericRouter<CM: ContactManager> {
+    fn route(
+        &mut self,
+        source: NodeID,
+        bundle: &Bundle,
+        curr_time: Date,
+        excluded_nodes: &Vec<NodeID>,
+    ) -> Option<RoutingOutput<CM>>;
+}
 
 // NOT thread-safe
 #[pyclass(name = "AsabrRouter", unsendable)]
 pub struct PyAsabrRouter {
     nodes_id_map: HashMap<String, NodeID>,
 
-    router: SpsnMpt<NoManagement, SegmentationManager>,
+    router: Box<dyn GenericRouter<SegmentationManager>>,
 }
 
 fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID> {
@@ -34,16 +52,32 @@ fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID>
 #[pymethods]
 impl PyAsabrRouter {
     #[new]
-    fn new(tvgutil_contact_plan_filepath: &str) -> PyResult<Self> {
+    fn new(
+        tvgutil_contact_plan_filepath: &str,
+        routing_flavor: &str,
+        pathfinding_strategy: &str,
+        distance_strategy: &str,
+    ) -> PyResult<Self> {
         let contact_plan =
             TVGUtilContactPlan::parse::<SegmentationManager>(tvgutil_contact_plan_filepath);
+
+        let routing_flavor = RoutingFlavor::from_str(routing_flavor)
+            .unwrap_or_else(|| panic!("Invalid routing flavor: {}", routing_flavor));
+        let pathfinding_strategy = PathfindingStrategy::from_str(pathfinding_strategy)
+            .unwrap_or_else(|| panic!("Invalid pathfinding strategy: {}", pathfinding_strategy));
+        let distance_strategy = DistanceStrategy::from_str(distance_strategy)
+            .unwrap_or_else(|| panic!("Invalid distance strategy: {}", distance_strategy));
 
         match contact_plan {
             Ok((nodes, contacts)) => {
                 let nodes_id_map = make_nodes_id_map(&nodes);
-
-                let cache = Rc::new(RefCell::new(TreeCache::new(false, false, 10)));
-                let router = Spsn::new(nodes, contacts, cache, false);
+                let router = factory::make_generic_router(
+                    routing_flavor,
+                    pathfinding_strategy,
+                    distance_strategy,
+                    nodes,
+                    contacts,
+                );
 
                 Ok(Self {
                     nodes_id_map,
