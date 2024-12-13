@@ -29,80 +29,121 @@ use a_sabr::routing::aliases::{
 #[cfg(all(feature = "contact_suppression", feature = "contact_work_area"))]
 use a_sabr::routing::aliases::{CgrFirstEndingContactGraph, CgrHopFirstEndingContactGraph};
 
-use super::{DistanceStrategy, GenericRouter, PathfindingStrategy, RoutingFlavor};
+use super::GenericRouter;
+
+macro_rules! register_spsn_router {
+    ($router:ident, $router_name:literal, $test_name_variable:ident, $nodes:ident, $contacts:ident) => {
+        if $test_name_variable == $router_name {
+            let cache = Rc::new(RefCell::new(TreeCache::new(false, false, 10)));
+
+            return Box::new($router(Spsn::new($nodes, $contacts, cache, false)));
+        }
+    };
+}
+
+macro_rules! register_cgr_router {
+    ($router:ident, $router_name:literal, $test_name_variable:ident, $nodes:ident, $contacts:ident) => {
+        if $test_name_variable == $router_name {
+            let routing_table = Rc::new(RefCell::new(RoutingTable::new()));
+
+            return Box::new($router(Cgr::new($nodes, $contacts, routing_table)));
+        }
+    };
+}
 
 pub fn make_generic_router(
-    routing_flavor: RoutingFlavor,
-    pathfinding_strategy: PathfindingStrategy,
-    distance_strategy: DistanceStrategy,
+    router_type: &str,
     nodes: Vec<Node<NoManagement>>,
     contacts: Vec<Contact<SegmentationManager>>,
 ) -> Box<dyn GenericRouter<SegmentationManager>> {
-    match routing_flavor {
-        RoutingFlavor::SPSN => {
-            let cache = Rc::new(RefCell::new(TreeCache::new(false, false, 10)));
+    register_spsn_router!(
+        SpsnNodeGraphRouter,
+        "SpsnNodeGraph",
+        router_type,
+        nodes,
+        contacts
+    );
+    register_spsn_router!(
+        SpsnHopNodeGraphRouter,
+        "SpsnHopNodeGraph",
+        router_type,
+        nodes,
+        contacts
+    );
+    register_spsn_router!(SpsnMptRouter, "SpsnMpt", router_type, nodes, contacts);
+    register_spsn_router!(SpsnHopMptRouter, "SpsnHopMpt", router_type, nodes, contacts);
+    #[cfg(feature = "contact_work_area")]
+    {
+        register_spsn_router!(
+            SpsnContactGraphRouter,
+            "SpsnContactGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_spsn_router!(
+            SpsnHopContactGraphRouter,
+            "SpsnHopContactGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+    }
 
-            match (pathfinding_strategy, distance_strategy) {
-                (PathfindingStrategy::NodeGraph, DistanceStrategy::Hop) => Box::new(
-                    SpsnNodeGraphHopRouter(Spsn::new(nodes, contacts, cache, false)),
-                ),
-                (PathfindingStrategy::NodeGraph, DistanceStrategy::SABR) => Box::new(
-                    SpsnNodeGraphSABRRouter(Spsn::new(nodes, contacts, cache, false)),
-                ),
-                (PathfindingStrategy::MultipathTracking, DistanceStrategy::Hop) => {
-                    Box::new(SpsnMptHopRouter(Spsn::new(nodes, contacts, cache, false)))
-                },
-                (PathfindingStrategy::MultipathTracking, DistanceStrategy::SABR) => {
-                    Box::new(SpsnMptSABRRouter(Spsn::new(nodes, contacts, cache, false)))
-                },
-                #[cfg(feature = "contact_work_area")]
-                (PathfindingStrategy::ContactGraph, DistanceStrategy::Hop) =>
-                    Box::new(
-                    SpsnContactGraphHopRouter(Spsn::new(nodes, contacts, cache, false)),
-                ),
-                #[cfg(feature = "contact_work_area")]
-                (PathfindingStrategy::ContactGraph, DistanceStrategy::SABR) => Box::new(
-                    SpsnContactGraphSABRRouter(Spsn::new(nodes, contacts, cache, false)),
-                ),
-                #[cfg(not(feature = "contact_work_area"))]
-                (PathfindingStrategy::ContactGraph, _) => panic!("Feature 'contact_work_area' must be enabled to use ContactGraph pathfinding with SPSN"),
-            }
-        }
-        #[cfg(feature = "contact_suppression")]
-        RoutingFlavor::CGRFirstEnding => {
-            match (pathfinding_strategy, distance_strategy) {
-                (PathfindingStrategy::NodeGraph, DistanceStrategy::Hop) => Box::new(
-                    CgrHopFirstEndingNodeGraphRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                (PathfindingStrategy::NodeGraph, DistanceStrategy::SABR) => Box::new(
-                    CgrSABRFirstEndingNodeGraphRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                (PathfindingStrategy::MultipathTracking, DistanceStrategy::Hop) => Box::new(
-                    CgrHopFirstEndingMptRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                (PathfindingStrategy::MultipathTracking, DistanceStrategy::SABR) => Box::new(
-                    CgrSABRFirstEndingMptRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                #[cfg(feature = "contact_work_area")]
-                (PathfindingStrategy::ContactGraph, DistanceStrategy::Hop) => Box::new(
-                    CgrHopFirstEndingContactGraphRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                #[cfg(feature = "contact_work_area")]
-                (PathfindingStrategy::ContactGraph, DistanceStrategy::SABR) => Box::new(
-                    CgrSABRFirstEndingContactGraphRouter(Cgr::new(nodes, contacts, Rc::new(RefCell::new(RoutingTable::new())))),
-                ),
-                #[cfg(not(feature = "contact_work_area"))]
-                (PathfindingStrategy::ContactGraph, _) => panic!("Feature 'contact_work_area' must be enabled to use ContactGraph pathfinding with SPSN"),
-            }
-        }
-        #[cfg(not(feature = "contact_suppression"))]
-        RoutingFlavor::CGRFirstEnding => panic!(
-            "Feature 'contact_suppression' must be enabled to use CGR FirstEnding pathfinding"
-        ),
-        RoutingFlavor::CGRFirstDepleted => {
-            todo!();
+    #[cfg(feature = "contact_suppression")]
+    {
+        register_cgr_router!(
+            CgrHopFirstEndingMptRouter,
+            "CgrHopFirstEndingMpt",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrFirstEndingMptRouter,
+            "CgrFirstEndingMpt",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrHopFirstEndingNodeGraphRouter,
+            "CgrHopFirstEndingNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrFirstEndingNodeGraphRouter,
+            "CgrFirstEndingNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+
+        #[cfg(feature = "contact_work_area")]
+        {
+            register_cgr_router!(
+                CgrHopFirstEndingContactGraphRouter,
+                "CgrHopFirstEndingContactGraph",
+                router_type,
+                nodes,
+                contacts
+            );
+            register_cgr_router!(
+                CgrFirstEndingContactGraphRouter,
+                "CgrFirstEndingContactGraph",
+                router_type,
+                nodes,
+                contacts
+            );
         }
     }
+
+    panic!(
+        "Router type \"{}\" is not invalid! (check for typo or disabled feature)",
+        &router_type
+    );
 }
 
 macro_rules! generate_generic_router {
@@ -126,26 +167,37 @@ macro_rules! generate_generic_router {
 // SPSN routers
 // ------------
 generate_generic_router!(
-    SpsnNodeGraphSABRRouter,
+    SpsnNodeGraphRouter,
     SpsnNodeGraph,
     NoManagement,
     SegmentationManager
 );
 generate_generic_router!(
-    SpsnNodeGraphHopRouter,
+    SpsnHopNodeGraphRouter,
     SpsnHopNodeGraph,
     NoManagement,
     SegmentationManager
 );
+generate_generic_router!(SpsnMptRouter, SpsnMpt, NoManagement, SegmentationManager);
 generate_generic_router!(
-    SpsnMptSABRRouter,
-    SpsnMpt,
+    SpsnHopMptRouter,
+    SpsnHopMpt,
     NoManagement,
     SegmentationManager
 );
+
+#[cfg(feature = "contact_work_area")]
 generate_generic_router!(
-    SpsnMptHopRouter,
-    SpsnHopMpt,
+    SpsnContactGraphRouter,
+    SpsnContactGraph,
+    NoManagement,
+    SegmentationManager
+);
+
+#[cfg(feature = "contact_work_area")]
+generate_generic_router!(
+    SpsnHopContactGraphRouter,
+    SpsnHopContactGraph,
     NoManagement,
     SegmentationManager
 );
@@ -162,7 +214,7 @@ generate_generic_router!(
 
 #[cfg(feature = "contact_suppression")]
 generate_generic_router!(
-    CgrSABRFirstEndingMptRouter,
+    CgrFirstEndingMptRouter,
     CgrFirstEndingMpt,
     NoManagement,
     SegmentationManager
@@ -176,7 +228,7 @@ generate_generic_router!(
 );
 #[cfg(feature = "contact_suppression")]
 generate_generic_router!(
-    CgrSABRFirstEndingNodeGraphRouter,
+    CgrFirstEndingNodeGraphRouter,
     CgrFirstEndingNodeGraph,
     NoManagement,
     SegmentationManager
@@ -191,26 +243,8 @@ generate_generic_router!(
 );
 #[cfg(all(feature = "contact_work_area", feature = "contact_suppression"))]
 generate_generic_router!(
-    CgrSABRFirstEndingContactGraphRouter,
+    CgrFirstEndingContactGraphRouter,
     CgrFirstEndingContactGraph,
-    NoManagement,
-    SegmentationManager
-);
-
-// Routers from "contact_work_area" feature
-// ----------------------------------------
-#[cfg(feature = "contact_work_area")]
-generate_generic_router!(
-    SpsnContactGraphSABRRouter,
-    SpsnContactGraph,
-    NoManagement,
-    SegmentationManager
-);
-
-#[cfg(feature = "contact_work_area")]
-generate_generic_router!(
-    SpsnContactGraphHopRouter,
-    SpsnHopContactGraph,
     NoManagement,
     SegmentationManager
 );

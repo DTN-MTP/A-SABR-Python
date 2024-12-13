@@ -13,13 +13,7 @@ use a_sabr::{
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
 
-mod distance_strategy;
 mod factory;
-mod pathfinding_strategy;
-mod routing_flavor;
-use distance_strategy::DistanceStrategy;
-use pathfinding_strategy::PathfindingStrategy;
-use routing_flavor::RoutingFlavor;
 
 trait GenericRouter<CM: ContactManager> {
     fn route(
@@ -52,32 +46,14 @@ fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID>
 #[pymethods]
 impl PyAsabrRouter {
     #[new]
-    fn new(
-        tvgutil_contact_plan_filepath: &str,
-        routing_flavor: &str,
-        pathfinding_strategy: &str,
-        distance_strategy: &str,
-    ) -> PyResult<Self> {
+    fn new(tvgutil_contact_plan_filepath: &str, router_type: &str) -> PyResult<Self> {
         let contact_plan =
             TVGUtilContactPlan::parse::<SegmentationManager>(tvgutil_contact_plan_filepath);
-
-        let routing_flavor = RoutingFlavor::from_str(routing_flavor)
-            .unwrap_or_else(|| panic!("Invalid routing flavor: {}", routing_flavor));
-        let pathfinding_strategy = PathfindingStrategy::from_str(pathfinding_strategy)
-            .unwrap_or_else(|| panic!("Invalid pathfinding strategy: {}", pathfinding_strategy));
-        let distance_strategy = DistanceStrategy::from_str(distance_strategy)
-            .unwrap_or_else(|| panic!("Invalid distance strategy: {}", distance_strategy));
 
         match contact_plan {
             Ok((nodes, contacts)) => {
                 let nodes_id_map = make_nodes_id_map(&nodes);
-                let router = factory::make_generic_router(
-                    routing_flavor,
-                    pathfinding_strategy,
-                    distance_strategy,
-                    nodes,
-                    contacts,
-                );
+                let router = factory::make_generic_router(router_type, nodes, contacts);
 
                 Ok(Self {
                     nodes_id_map,
