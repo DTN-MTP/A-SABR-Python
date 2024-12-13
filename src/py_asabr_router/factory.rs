@@ -31,7 +31,8 @@ use a_sabr::routing::aliases::{CgrFirstEndingContactGraph, CgrHopFirstEndingCont
 
 #[cfg(feature = "first_depleted")]
 use a_sabr::routing::aliases::{
-    CgrFirstDepletedMpt, CgrFirstDepletedNodeGraph, CgrHopFirstDepletedMpt, CgrHopFirstDepletedNodeGraph,
+    CgrFirstDepletedMpt, CgrFirstDepletedNodeGraph, CgrHopFirstDepletedMpt,
+    CgrHopFirstDepletedNodeGraph,
 };
 
 #[cfg(all(feature = "first_depleted", feature = "contact_work_area"))]
@@ -59,142 +60,48 @@ macro_rules! register_cgr_router {
     };
 }
 
+#[rustfmt::skip]
 pub fn make_generic_router(
     router_type: &str,
     nodes: Vec<Node<NoManagement>>,
     contacts: Vec<Contact<SegmentationManager>>,
 ) -> Box<dyn GenericRouter<SegmentationManager>> {
-    register_spsn_router!(
-        SpsnNodeGraphRouter,
-        "SpsnNodeGraph",
-        router_type,
-        nodes,
-        contacts
-    );
-    register_spsn_router!(
-        SpsnHopNodeGraphRouter,
-        "SpsnHopNodeGraph",
-        router_type,
-        nodes,
-        contacts
-    );
+    register_spsn_router!(SpsnNodeGraphRouter, "SpsnNodeGraph", router_type, nodes, contacts);
+    register_spsn_router!(SpsnHopNodeGraphRouter, "SpsnHopNodeGraph", router_type, nodes, contacts);
     register_spsn_router!(SpsnMptRouter, "SpsnMpt", router_type, nodes, contacts);
     register_spsn_router!(SpsnHopMptRouter, "SpsnHopMpt", router_type, nodes, contacts);
+
     #[cfg(feature = "contact_work_area")]
     {
-        register_spsn_router!(
-            SpsnContactGraphRouter,
-            "SpsnContactGraph",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_spsn_router!(
-            SpsnHopContactGraphRouter,
-            "SpsnHopContactGraph",
-            router_type,
-            nodes,
-            contacts
-        );
+        register_spsn_router!(SpsnContactGraphRouter, "SpsnContactGraph", router_type, nodes, contacts);
+        register_spsn_router!(SpsnHopContactGraphRouter, "SpsnHopContactGraph", router_type, nodes, contacts);
     }
 
     #[cfg(feature = "contact_suppression")]
     {
-        register_cgr_router!(
-            CgrHopFirstEndingMptRouter,
-            "CgrHopFirstEndingMpt",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrFirstEndingMptRouter,
-            "CgrFirstEndingMpt",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrHopFirstEndingNodeGraphRouter,
-            "CgrHopFirstEndingNodeGraph",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrFirstEndingNodeGraphRouter,
-            "CgrFirstEndingNodeGraph",
-            router_type,
-            nodes,
-            contacts
-        );
+        register_cgr_router!(CgrHopFirstEndingMptRouter, "CgrHopFirstEndingMpt", router_type, nodes, contacts);
+        register_cgr_router!(CgrFirstEndingMptRouter, "CgrFirstEndingMpt", router_type, nodes, contacts);
+        register_cgr_router!(CgrHopFirstEndingNodeGraphRouter, "CgrHopFirstEndingNodeGraph", router_type, nodes, contacts);
+        register_cgr_router!(CgrFirstEndingNodeGraphRouter, "CgrFirstEndingNodeGraph", router_type, nodes, contacts);
 
         #[cfg(feature = "contact_work_area")]
         {
-            register_cgr_router!(
-                CgrHopFirstEndingContactGraphRouter,
-                "CgrHopFirstEndingContactGraph",
-                router_type,
-                nodes,
-                contacts
-            );
-            register_cgr_router!(
-                CgrFirstEndingContactGraphRouter,
-                "CgrFirstEndingContactGraph",
-                router_type,
-                nodes,
-                contacts
-            );
+            register_cgr_router!(CgrHopFirstEndingContactGraphRouter, "CgrHopFirstEndingContactGraph", router_type, nodes, contacts);
+            register_cgr_router!(CgrFirstEndingContactGraphRouter, "CgrFirstEndingContactGraph", router_type, nodes, contacts);
         }
     }
 
     #[cfg(feature = "first_depleted")]
     {
-        register_cgr_router!(
-            CgrHopFirstDepletedMptRouter,
-            "CgrHopFirstDepletedMpt",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrFirstDepletedMptRouter,
-            "CgrFirstDepletedMpt",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrHopFirstDepletedNodeGraphRouter,
-            "CgrHopFirstDepletedNodeGraph",
-            router_type,
-            nodes,
-            contacts
-        );
-        register_cgr_router!(
-            CgrFirstDepletedNodeGraphRouter,
-            "CgrFirstDepletedNodeGraph",
-            router_type,
-            nodes,
-            contacts
-        );
+        register_cgr_router!(CgrHopFirstDepletedMptRouter, "CgrHopFirstDepletedMpt", router_type, nodes, contacts);
+        register_cgr_router!(CgrFirstDepletedMptRouter, "CgrFirstDepletedMpt", router_type, nodes, contacts);
+        register_cgr_router!(CgrHopFirstDepletedNodeGraphRouter, "CgrHopFirstDepletedNodeGraph", router_type, nodes, contacts);
+        register_cgr_router!(CgrFirstDepletedNodeGraphRouter, "CgrFirstDepletedNodeGraph", router_type, nodes, contacts);
 
         #[cfg(feature = "contact_work_area")]
         {
-            register_cgr_router!(
-                CgrHopFirstDepletedContactGraphRouter,
-                "CgrHopFirstDepletedContactGraph",
-                router_type,
-                nodes,
-                contacts
-            );
-            register_cgr_router!(
-                CgrFirstDepletedContactGraphRouter,
-                "CgrFirstDepletedContactGraph",
-                router_type,
-                nodes,
-                contacts
-            );
+            register_cgr_router!(CgrHopFirstDepletedContactGraphRouter, "CgrHopFirstDepletedContactGraph", router_type, nodes, contacts);
+            register_cgr_router!(CgrFirstDepletedContactGraphRouter, "CgrFirstDepletedContactGraph", router_type, nodes, contacts);
         }
     }
 
