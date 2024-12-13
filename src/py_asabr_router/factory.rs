@@ -29,6 +29,14 @@ use a_sabr::routing::aliases::{
 #[cfg(all(feature = "contact_suppression", feature = "contact_work_area"))]
 use a_sabr::routing::aliases::{CgrFirstEndingContactGraph, CgrHopFirstEndingContactGraph};
 
+#[cfg(feature = "first_depleted")]
+use a_sabr::routing::aliases::{
+    CgrFirstDepletedMpt, CgrFirstDepletedNodeGraph, CgrHopFirstDepletedMpt, CgrHopFirstDepletedNodeGraph,
+};
+
+#[cfg(all(feature = "first_depleted", feature = "contact_work_area"))]
+use a_sabr::routing::aliases::{CgrFirstDepletedContactGraph, CgrHopFirstDepletedContactGraph};
+
 use super::GenericRouter;
 
 macro_rules! register_spsn_router {
@@ -140,6 +148,56 @@ pub fn make_generic_router(
         }
     }
 
+    #[cfg(feature = "first_depleted")]
+    {
+        register_cgr_router!(
+            CgrHopFirstDepletedMptRouter,
+            "CgrHopFirstDepletedMpt",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrFirstDepletedMptRouter,
+            "CgrFirstDepletedMpt",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrHopFirstDepletedNodeGraphRouter,
+            "CgrHopFirstDepletedNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+        register_cgr_router!(
+            CgrFirstDepletedNodeGraphRouter,
+            "CgrFirstDepletedNodeGraph",
+            router_type,
+            nodes,
+            contacts
+        );
+
+        #[cfg(feature = "contact_work_area")]
+        {
+            register_cgr_router!(
+                CgrHopFirstDepletedContactGraphRouter,
+                "CgrHopFirstDepletedContactGraph",
+                router_type,
+                nodes,
+                contacts
+            );
+            register_cgr_router!(
+                CgrFirstDepletedContactGraphRouter,
+                "CgrFirstDepletedContactGraph",
+                router_type,
+                nodes,
+                contacts
+            );
+        }
+    }
+
     panic!(
         "Router type \"{}\" is not invalid! (check for typo or disabled feature)",
         &router_type
@@ -202,8 +260,8 @@ generate_generic_router!(
     SegmentationManager
 );
 
-// CGR routers
-// ------------
+// CGR routers [FirstEnding flavor]
+// --------------------------------
 #[cfg(feature = "contact_suppression")]
 generate_generic_router!(
     CgrHopFirstEndingMptRouter,
@@ -211,7 +269,6 @@ generate_generic_router!(
     NoManagement,
     SegmentationManager
 );
-
 #[cfg(feature = "contact_suppression")]
 generate_generic_router!(
     CgrFirstEndingMptRouter,
@@ -245,6 +302,52 @@ generate_generic_router!(
 generate_generic_router!(
     CgrFirstEndingContactGraphRouter,
     CgrFirstEndingContactGraph,
+    NoManagement,
+    SegmentationManager
+);
+
+// CGR routers [FirstDepleted flavor]
+// --------------------------------
+#[cfg(feature = "first_depleted")]
+generate_generic_router!(
+    CgrHopFirstDepletedMptRouter,
+    CgrHopFirstDepletedMpt,
+    NoManagement,
+    SegmentationManager
+);
+#[cfg(feature = "first_depleted")]
+generate_generic_router!(
+    CgrFirstDepletedMptRouter,
+    CgrFirstDepletedMpt,
+    NoManagement,
+    SegmentationManager
+);
+#[cfg(feature = "first_depleted")]
+generate_generic_router!(
+    CgrHopFirstDepletedNodeGraphRouter,
+    CgrHopFirstDepletedNodeGraph,
+    NoManagement,
+    SegmentationManager
+);
+#[cfg(feature = "first_depleted")]
+generate_generic_router!(
+    CgrFirstDepletedNodeGraphRouter,
+    CgrFirstDepletedNodeGraph,
+    NoManagement,
+    SegmentationManager
+);
+
+#[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
+generate_generic_router!(
+    CgrHopFirstDepletedContactGraphRouter,
+    CgrHopFirstDepletedContactGraph,
+    NoManagement,
+    SegmentationManager
+);
+#[cfg(all(feature = "contact_work_area", feature = "first_depleted"))]
+generate_generic_router!(
+    CgrFirstDepletedContactGraphRouter,
+    CgrFirstDepletedContactGraph,
     NoManagement,
     SegmentationManager
 );
