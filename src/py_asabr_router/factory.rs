@@ -106,7 +106,7 @@ pub fn make_generic_router(
     }
 
     panic!(
-        "Router type \"{}\" is not invalid! (check for typo or disabled feature)",
+        "Router type \"{}\" is invalid! (check for typo or disabled feature)",
         &router_type
     );
 }
