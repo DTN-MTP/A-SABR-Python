@@ -7,30 +7,17 @@ use a_sabr::{
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node::Node,
     node_manager::none::NoManagement,
-    routing::RoutingOutput,
+    routing::{aliases::*, Router, RoutingOutput},
     types::{Date, NodeID},
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
 
-mod factory;
-
-trait GenericRouter<CM: ContactManager> {
-    fn route(
-        &mut self,
-        source: NodeID,
-        bundle: &Bundle,
-        curr_time: Date,
-        excluded_nodes: &Vec<NodeID>,
-    ) -> Option<RoutingOutput<CM>>;
-}
-
 // NOT thread-safe
 #[pyclass(name = "AsabrRouter", unsendable)]
 pub struct PyAsabrRouter {
     nodes_id_map: HashMap<String, NodeID>,
-
-    router: Box<dyn GenericRouter<SegmentationManager>>,
+    router: Box<dyn Router<SegmentationManager>>,
 }
 
 fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID> {
@@ -53,7 +40,16 @@ impl PyAsabrRouter {
         match contact_plan {
             Ok((nodes, contacts)) => {
                 let nodes_id_map = make_nodes_id_map(&nodes);
-                let router = factory::make_generic_router(router_type, nodes, contacts);
+                let router = build_generic_router::<NoManagement, SegmentationManager>(
+                    router_type,
+                    nodes,
+                    contacts,
+                    Some(SpsnOptions {
+                        check_priority: false,
+                        check_size: false,
+                        max_entries: 10,
+                    }),
+                );
 
                 Ok(Self {
                     nodes_id_map,
