@@ -17,7 +17,7 @@ use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
 #[pyclass(name = "AsabrRouter", unsendable)]
 pub struct PyAsabrRouter {
     nodes_id_map: HashMap<String, NodeID>,
-    router: Box<dyn Router<SegmentationManager>>,
+    router: Box<dyn Router<NoManagement, SegmentationManager>>,
 }
 
 fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID> {
@@ -34,8 +34,9 @@ fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID>
 impl PyAsabrRouter {
     #[new]
     fn new(tvgutil_contact_plan_filepath: &str, router_type: &str) -> PyResult<Self> {
-        let contact_plan =
-            TVGUtilContactPlan::parse::<SegmentationManager>(tvgutil_contact_plan_filepath);
+        let contact_plan = TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(
+            tvgutil_contact_plan_filepath,
+        );
 
         match contact_plan {
             Ok((nodes, contacts)) => {

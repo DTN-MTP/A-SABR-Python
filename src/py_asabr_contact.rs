@@ -4,6 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use a_sabr::{
     contact::Contact,
     contact_manager::seg::SegmentationManager,
+    node_manager::none::NoManagement,
     types::{Date, NodeID},
 };
 
@@ -22,7 +23,9 @@ pub struct PyAsabrContact {
 }
 
 impl PyAsabrContact {
-    pub fn from_native_contact(contact: &Rc<RefCell<Contact<SegmentationManager>>>) -> Self {
+    pub fn from_native_contact(
+        contact: &Rc<RefCell<Contact<NoManagement, SegmentationManager>>>,
+    ) -> Self {
         let contact_id = Rc::as_ptr(contact) as usize;
         let contact = contact.borrow();
 
