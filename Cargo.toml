@@ -12,6 +12,13 @@ a_sabr = { path = "../a-sabr" }
 pyo3 = { version = "0.22.6", features = ["extension-module"] }
 
 [features]
+default = ["a_sabr/default"]
+debug = ["a_sabr/debug"]
 contact_work_area = ["a_sabr/contact_work_area"]
+node_rx = ["a_sabr/node_rx"]
+node_tx = ["a_sabr/node_tx"]
+node_proc = ["a_sabr/node_proc"]
 contact_suppression = ["a_sabr/contact_suppression"]
 first_depleted = ["a_sabr/first_depleted"]
+enable_node_management = ["a_sabr/enable_node_management"]
+
