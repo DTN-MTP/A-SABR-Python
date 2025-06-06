@@ -82,7 +82,9 @@ impl PyAsabrRouter {
             for (_, (contact, reachable_nodes)) in &routing_output.first_hops {
                 py_routing_output.push((
                     PyAsabrContact::from_native_contact(contact),
-                    reachable_nodes.clone(),
+                                       reachable_nodes.iter()
+    .map(|stage_rc| stage_rc.borrow().to_node)
+    .collect(),
                 ));
             }
 
