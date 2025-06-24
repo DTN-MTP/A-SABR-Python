@@ -20,5 +20,4 @@ node_tx = ["a_sabr/node_tx"]
 node_proc = ["a_sabr/node_proc"]
 contact_suppression = ["a_sabr/contact_suppression"]
 first_depleted = ["a_sabr/first_depleted"]
-enable_node_management = ["a_sabr/enable_node_management"]
-
+manual_queueing = ["a_sabr/manual_queueing"]
