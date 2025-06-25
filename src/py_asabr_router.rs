@@ -47,7 +47,7 @@ impl PyAsabrRouter {
                     contacts,
                     Some(SpsnOptions {
                         check_priority: false,
-                        check_size: false,
+                        check_size: true,
                         max_entries: 10,
                     }),
                 );
