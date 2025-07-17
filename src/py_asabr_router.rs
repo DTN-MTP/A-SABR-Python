@@ -2,12 +2,11 @@ use pyo3::{exceptions::PyBaseException, prelude::*};
 use std::collections::HashMap;
 
 use a_sabr::{
-    bundle::Bundle,
-    contact_manager::{seg::SegmentationManager, ContactManager},
+    contact_manager::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node::Node,
     node_manager::none::NoManagement,
-    routing::{aliases::*, Router, RoutingOutput},
+    routing::{aliases::*, Router},
     types::{Date, NodeID},
 };
 
@@ -82,9 +81,10 @@ impl PyAsabrRouter {
             for (_, (contact, reachable_nodes)) in &routing_output.first_hops {
                 py_routing_output.push((
                     PyAsabrContact::from_native_contact(contact),
-                                       reachable_nodes.iter()
-    .map(|stage_rc| stage_rc.borrow().to_node)
-    .collect(),
+                    reachable_nodes
+                        .iter()
+                        .map(|stage_rc| stage_rc.borrow().to_node)
+                        .collect(),
                 ));
             }
 
