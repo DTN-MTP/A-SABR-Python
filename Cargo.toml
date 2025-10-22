@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 a_sabr = { path = "../a-sabr" }
-pyo3 = { version = "0.22.6", features = ["extension-module"] }
+pyo3 = { version = "0.24.1", features = ["extension-module"] }
 
 [features]
 default = ["a_sabr/default"]
