@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use a_sabr::{
     contact::Contact,
-    contact_manager::seg::SegmentationManager,
+    contact_manager::segmentation::seg::SegmentationManager,
     node_manager::none::NoManagement,
     types::{Date, NodeID},
 };

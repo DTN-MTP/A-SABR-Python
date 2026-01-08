@@ -2,7 +2,7 @@ use pyo3::{exceptions::PyBaseException, prelude::*};
 use std::collections::HashMap;
 
 use a_sabr::{
-    contact_manager::seg::SegmentationManager,
+    contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
     node::Node,
     node_manager::none::NoManagement,
