@@ -40,7 +40,7 @@ impl PyAsabrRouter {
         match contact_plan {
             Ok((nodes, contacts)) => {
                 let nodes_id_map = make_nodes_id_map(&nodes);
-                let router = build_generic_router::<NoManagement, SegmentationManager>(
+                let Ok(router) = build_generic_router::<NoManagement, SegmentationManager>(
                     router_type,
                     nodes,
                     contacts,
@@ -49,7 +49,9 @@ impl PyAsabrRouter {
                         check_size: true,
                         max_entries: 10,
                     }),
-                );
+                ) else {
+                    panic!("build_generic_router failed.");
+                };
 
                 Ok(Self {
                     nodes_id_map,
@@ -72,7 +74,7 @@ impl PyAsabrRouter {
     ) -> Vec<(PyAsabrContact, Vec<NodeID>)> {
         let bundle = bundle.to_native_bundle();
 
-        if let Some(routing_output) = self
+        if let Ok(Some(routing_output)) = self
             .router
             .route(source, &bundle, curr_time, &excluded_nodes)
         {
