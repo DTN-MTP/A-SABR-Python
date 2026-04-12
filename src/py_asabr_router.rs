@@ -38,12 +38,11 @@ impl PyAsabrRouter {
         );
 
         match contact_plan {
-            Ok((nodes, contacts)) => {
-                let nodes_id_map = make_nodes_id_map(&nodes);
+            Ok(cp) => {
+                let nodes_id_map = make_nodes_id_map(&cp.nodes);
                 let Ok(router) = build_generic_router::<NoManagement, SegmentationManager>(
                     router_type,
-                    nodes,
-                    contacts,
+                    cp,
                     Some(SpsnOptions {
                         check_priority: false,
                         check_size: true,
