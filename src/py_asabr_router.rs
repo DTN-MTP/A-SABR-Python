@@ -73,9 +73,9 @@ impl PyAsabrRouter {
     ) -> Vec<(PyAsabrContact, Vec<NodeID>)> {
         let bundle = bundle.to_native_bundle();
 
-        if let Ok(Some(routing_output)) = self
-            .router
-            .route(source, &bundle, curr_time, &excluded_nodes)
+        if let Ok(Some(routing_output)) =
+            self.router
+                .route(source, &bundle, curr_time, &excluded_nodes)
         {
             let mut py_routing_output = Vec::new();
 

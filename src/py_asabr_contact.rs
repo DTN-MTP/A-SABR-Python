@@ -31,8 +31,8 @@ impl PyAsabrContact {
 
         Self {
             contact_id,
-            tx_node: contact.get_tx_node(),
-            rx_node: contact.get_rx_node(),
+            tx_node: contact.get_tx_node_id(),
+            rx_node: contact.get_rx_node_id(),
             start_time: contact.info.start,
             end_time: contact.info.end,
         }
