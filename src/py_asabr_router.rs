@@ -39,8 +39,8 @@ impl PyAsabrRouter {
 
         match contact_plan {
             Ok(cp) => {
-                let nodes_id_map = make_nodes_id_map(&cp.nodes);
-                let Ok(router) = build_generic_router::<NoManagement, SegmentationManager>(
+                let nodes_id_map = make_nodes_id_map(&cp.vertices);
+                let router = build_generic_router::<NoManagement, SegmentationManager>(
                     router_type,
                     cp,
                     Some(SpsnOptions {
@@ -48,9 +48,10 @@ impl PyAsabrRouter {
                         check_size: true,
                         max_entries: 10,
                     }),
-                ) else {
-                    panic!("build_generic_router failed.");
-                };
+                )
+                .map_err(|e| {
+                    PyErr::new::<PyBaseException, _>(format!("[A-SABR][Router] Build error: {}", e))
+                })?;
 
                 Ok(Self {
                     nodes_id_map,
