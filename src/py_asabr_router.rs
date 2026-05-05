@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use a_sabr::{
     contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
-    node::Node,
     node_manager::none::NoManagement,
     routing::{aliases::*, Router},
     types::{Date, NodeID},
+    vertex::Vertex,
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
@@ -19,11 +19,16 @@ pub struct PyAsabrRouter {
     router: Box<dyn Router<NoManagement, SegmentationManager>>,
 }
 
-fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID> {
+fn make_nodes_id_map(vertices: &Vec<Vertex<NoManagement>>) -> HashMap<String, NodeID> {
     let mut nodes_id_map = HashMap::new();
 
-    for node in nodes {
-        nodes_id_map.insert(node.get_node_name(), node.get_node_id());
+    for vertex in vertices {
+        match vertex {
+            Vertex::INode(node) | Vertex::ENode(node) => {
+                nodes_id_map.insert(node.get_node_name(), node.get_node_id());
+            }
+            Vertex::VNode(_) => {}
+        }
     }
 
     nodes_id_map
