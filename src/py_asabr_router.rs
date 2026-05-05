@@ -80,7 +80,7 @@ impl PyAsabrRouter {
         {
             let mut py_routing_output = Vec::new();
 
-            for (_, (contact, reachable_nodes)) in &routing_output.first_hops {
+            for (contact, reachable_nodes) in routing_output.first_hops.values() {
                 py_routing_output.push((
                     PyAsabrContact::from_native_contact(contact),
                     reachable_nodes
