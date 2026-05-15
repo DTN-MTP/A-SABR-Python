@@ -8,7 +8,7 @@ name = "a_sabr_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-a_sabr = { path = "../a-sabr" }
+a_sabr = { git = "https://github.com/DTN-MTP/a-sabr", branch = "main"} 
 pyo3 = { version = "0.24.1", features = ["extension-module"] }
 
 [features]
