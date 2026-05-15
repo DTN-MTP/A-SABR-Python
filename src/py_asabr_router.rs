@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use a_sabr::{
     contact_manager::segmentation::seg::SegmentationManager,
     contact_plan::from_tvgutil_file::TVGUtilContactPlan,
-    node::Node,
     node_manager::none::NoManagement,
     routing::{aliases::*, Router},
     types::{Date, NodeID},
+    vertex::Vertex,
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
@@ -19,11 +19,16 @@ pub struct PyAsabrRouter {
     router: Box<dyn Router<NoManagement, SegmentationManager>>,
 }
 
-fn make_nodes_id_map(nodes: &Vec<Node<NoManagement>>) -> HashMap<String, NodeID> {
+fn make_nodes_id_map(vertices: &Vec<Vertex<NoManagement>>) -> HashMap<String, NodeID> {
     let mut nodes_id_map = HashMap::new();
 
-    for node in nodes {
-        nodes_id_map.insert(node.get_node_name(), node.get_node_id());
+    for vertex in vertices {
+        match vertex {
+            Vertex::INode(node) | Vertex::ENode(node) => {
+                nodes_id_map.insert(node.get_node_name(), node.get_node_id());
+            }
+            Vertex::VNode(_) => {}
+        }
     }
 
     nodes_id_map
@@ -38,20 +43,20 @@ impl PyAsabrRouter {
         );
 
         match contact_plan {
-            Ok((nodes, contacts)) => {
-                let nodes_id_map = make_nodes_id_map(&nodes);
-                let Ok(router) = build_generic_router::<NoManagement, SegmentationManager>(
+            Ok(cp) => {
+                let nodes_id_map = make_nodes_id_map(&cp.vertices);
+                let router = build_generic_router::<NoManagement, SegmentationManager>(
                     router_type,
-                    nodes,
-                    contacts,
+                    cp,
                     Some(SpsnOptions {
                         check_priority: false,
                         check_size: true,
                         max_entries: 10,
                     }),
-                ) else {
-                    panic!("build_generic_router failed.");
-                };
+                )
+                .map_err(|e| {
+                    PyErr::new::<PyBaseException, _>(format!("[A-SABR][Router] Build error: {}", e))
+                })?;
 
                 Ok(Self {
                     nodes_id_map,
@@ -74,13 +79,13 @@ impl PyAsabrRouter {
     ) -> Vec<(PyAsabrContact, Vec<NodeID>)> {
         let bundle = bundle.to_native_bundle();
 
-        if let Ok(Some(routing_output)) = self
-            .router
-            .route(source, &bundle, curr_time, &excluded_nodes)
+        if let Ok(Some(routing_output)) =
+            self.router
+                .route(source, &bundle, curr_time, &excluded_nodes)
         {
             let mut py_routing_output = Vec::new();
 
-            for (_, (contact, reachable_nodes)) in &routing_output.first_hops {
+            for (contact, reachable_nodes) in routing_output.first_hops.values() {
                 py_routing_output.push((
                     PyAsabrContact::from_native_contact(contact),
                     reachable_nodes
