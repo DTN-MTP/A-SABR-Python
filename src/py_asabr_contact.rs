@@ -1,40 +1,16 @@
+use a_sabr::types::Date;
 use pyo3::prelude::*;
-use std::{cell::RefCell, rc::Rc};
-
-use a_sabr::{
-    contact::Contact,
-    contact_manager::segmentation::seg::SegmentationManager,
-    node_manager::none::NoManagement,
-    types::{Date, NodeID},
-};
 
 #[pyclass(name = "AsabrContact")]
 pub struct PyAsabrContact {
     #[pyo3(get)]
-    contact_id: usize,
+    pub tx_node: usize,
     #[pyo3(get)]
-    tx_node: NodeID,
+    pub rx_node: usize,
     #[pyo3(get)]
-    rx_node: NodeID,
+    pub start_time: Date,
     #[pyo3(get)]
-    start_time: Date,
-    #[pyo3(get)]
-    end_time: Date,
+    pub end_time: Date,
 }
 
-impl PyAsabrContact {
-    pub fn from_native_contact(
-        contact: &Rc<RefCell<Contact<NoManagement, SegmentationManager>>>,
-    ) -> Self {
-        let contact_id = Rc::as_ptr(contact) as usize;
-        let contact = contact.borrow();
 
-        Self {
-            contact_id,
-            tx_node: contact.get_tx_node_id(),
-            rx_node: contact.get_rx_node_id(),
-            start_time: contact.info.start,
-            end_time: contact.info.end,
-        }
-    }
-}

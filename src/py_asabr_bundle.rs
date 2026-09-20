@@ -15,9 +15,9 @@ use a_sabr::{
 #[derive(Debug, Clone)]
 pub struct PyAsabrBundle {
     /// The starting node identifier for the routing operation.
-    source: NodeID,
+    source: usize, // todo
     ///  A vector of node identifiers representing the target destinations for the routing operation.
-    destinations: Vec<NodeID>,
+    pub destinations: Vec<usize>, // todo
     /// The priority level of the bundle, used to influence routing decisions.
     priority: Priority,
     /// The volume size associated with the bundle, which can affect routing constraints.
@@ -30,8 +30,8 @@ pub struct PyAsabrBundle {
 impl PyAsabrBundle {
     #[new]
     fn new(
-        source: NodeID,
-        destinations: Vec<NodeID>,
+        source: usize, // todo
+        destinations: Vec<usize>, // todo
         priority: Priority,
         size: Volume,
         expiration: Date,
@@ -49,8 +49,6 @@ impl PyAsabrBundle {
 impl PyAsabrBundle {
     pub fn to_native_bundle(&self) -> Bundle {
         Bundle {
-            source: self.source,
-            destinations: self.destinations.clone(),
             priority: self.priority,
             size: self.size,
             expiration: self.expiration,
