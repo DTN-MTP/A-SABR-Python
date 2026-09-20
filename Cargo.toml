@@ -8,16 +8,13 @@ name = "a_sabr_python"
 crate-type = ["cdylib"]
 
 [dependencies]
-a_sabr = { git = "https://github.com/DTN-MTP/a-sabr", branch = "main"} 
+a_sabr = { git = "https://github.com/DTN-MTP/a-sabr", branch = "feat/python-bindings"}
 pyo3 = { version = "0.24.1", features = ["extension-module"] }
+serde_json = "1.0"
 
 [features]
 default = ["a_sabr/default"]
 debug = ["a_sabr/debug"]
-contact_work_area = ["a_sabr/contact_work_area"]
-node_rx = ["a_sabr/node_rx"]
-node_tx = ["a_sabr/node_tx"]
-node_proc = ["a_sabr/node_proc"]
 contact_suppression = ["a_sabr/contact_suppression"]
 first_depleted = ["a_sabr/first_depleted"]
 manual_queueing = ["a_sabr/manual_queueing"]
