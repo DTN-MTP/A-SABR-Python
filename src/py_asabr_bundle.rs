@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use a_sabr::{
     bundle::Bundle,
-    types::{Date, NodeID, Priority, Volume},
+    types::{Date, Priority, Volume},
 };
 
 /// A structure representing a routing bundle containing essential information for pathfinding.

@@ -1,8 +1,21 @@
 use std::{collections::HashMap, fs::File};
-use pyo3::{exceptions::{PyBaseException, PyValueError}, prelude::*};
+
+use pyo3::{
+    exceptions::{PyBaseException, PyValueError},
+    prelude::*,
+};
 
 use a_sabr::{
-    contact_manager::segmentation::seg::SegmentationManager, contact_plan::{RealNode, from_tvgutil_file::TVGUtilContactPlan}, errors::ASABRError, mk_router, multigraph::{Multigraph, NodeRef, RoutableNodeRef}, node_manager::none::NoManagement, pathfinding::Pathfinding, types::{Date, NodeID}, utils::{Router, make_guard}, vnode::VirtualNodeInfo,
+    contact_manager::segmentation::seg::SegmentationManager,
+    contact_plan::{RealNode, from_tvgutil_file::TVGUtilContactPlan},
+    errors::ASABRError,
+    mk_router,
+    multigraph::{Multigraph, NodeRef, RoutableNodeRef},
+    node_manager::none::NoManagement,
+    pathfinding::Pathfinding,
+    types::{Date, NodeID},
+    utils::{Routing, SingeSourceRouter, make_guard},
+    vnode::VirtualNodeInfo,
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
@@ -18,23 +31,28 @@ impl<T> IntoPyResult<T> for Result<T, ASABRError> {
     }
 }
 
-#[pyclass(name = "AsabrRouter", unsendable)]
-pub struct PyAsabrRouter {
-    nodes_id_map: HashMap<String, NodeID>,
-    router: Router<
+/// Pathfinder trait object. In a type alias, `Box<dyn ...>` defaults to `+ 'static`.
+type Pf = Box<
+    dyn Pathfinding<'static, NoManagement, SegmentationManager, RoutableNodeRef<'static>>,
+>;
+
+/// Router trait object.
+/// `Routing` has 4 generic parameters `<'id, NM, CM, D>`; the pathfinder is the
+/// associated type `Pathfinder`, so it goes in `Pathfinder = ...`, not in the generics.
+type DynRouter = Box<
+    dyn Routing<
         'static,
         NoManagement,
         SegmentationManager,
-        Box<
-            dyn Pathfinding<
-                'static,
-                NoManagement,
-                SegmentationManager,
-                RoutableNodeRef<'static>,
-            > + 'static,
-        >,
-        RoutableNodeRef<'static>,
+        RoutableNodeRef<'static>, // D
+        Pathfinder = Pf,
     >,
+>;
+
+#[pyclass(name = "AsabrRouter", unsendable)]
+pub struct PyAsabrRouter {
+    nodes_id_map: HashMap<String, NodeID>,
+    router: DynRouter,
 }
 
 fn make_nodes_id_map(
@@ -57,7 +75,11 @@ fn make_nodes_id_map(
 #[pymethods]
 impl PyAsabrRouter {
     #[new]
-    fn new(tvgutil_contact_plan_filepath: &str, router_type: &str) -> PyResult<Self> {
+    fn new(
+        tvgutil_contact_plan_filepath: &str,
+        router_type: &str,
+        args: Option<usize>,
+    ) -> PyResult<Self> {
         let file = File::open(tvgutil_contact_plan_filepath).map_err(|e| {
             PyErr::new::<PyBaseException, _>(format!(
                 "[A-SABR][File] Failed to open file '{}': {}",
@@ -66,42 +88,48 @@ impl PyAsabrRouter {
         })?;
 
         let json: serde_json::Value = serde_json::from_reader(file).map_err(|e| {
-            PyErr::new::<PyBaseException, _>(format!(
-                "[A-SABR][JSON] Failed to parse JSON: {}",
-                e
-            ))
+            PyErr::new::<PyBaseException, _>(format!("[A-SABR][JSON] Failed to parse JSON: {}", e))
         })?;
 
         make_guard!(id);
 
-        // 1. Parse using SegmentationManager to match PyAsabrRouter field layout
         let contact_plan = TVGUtilContactPlan::parse::<NoManagement, SegmentationManager>(json)
-            .map_err(|err| PyErr::new::<PyBaseException, _>(format!("[A-SABR] Parse error: {err}")))?;
+            .map_err(|err| {
+                PyErr::new::<PyBaseException, _>(format!("[A-SABR] Parse error: {err}"))
+            })?;
 
         let nodes_id_map = make_nodes_id_map(&contact_plan.realnodes, &contact_plan.vnodes);
 
-        let graph = Multigraph::new(id, contact_plan)
-            .map_err(|err| PyErr::new::<PyBaseException, _>(format!("[A-SABR] Multigraph error: {err}")))?;
+        let graph = Multigraph::new(id, contact_plan).map_err(|err| {
+            PyErr::new::<PyBaseException, _>(format!("[A-SABR] Multigraph error: {err}"))
+        })?;
 
-        // 2. Pass SegmentationManager to mk_router!
-        // 2. Pass SegmentationManager to mk_router!
-     let make_router_fn = || -> Result<_, ASABRError> {
-            let r = mk_router!(
+        // The macro uses `?` and `return Err(..)`, so it has to run inside a
+        // function/closure that returns `Result<_, ASABRError>`.
+        // NOTE: macro argument order must match your current macro definition:
+        //   (id, router_type, NM, CM, prio_count, algo, multigraph, algo_args)
+        let build_router = || -> Result<_, ASABRError> {
+            mk_router!(
                 id,
+                SingeSourceRouter,
                 NoManagement,
                 SegmentationManager,
                 1,
                 router_type,
-                graph
-            )?;
-            Ok(r)
+                graph,
+                args
+            )
         };
-    let router = make_router_fn().map_err(|err| {
+
+        let router = build_router().map_err(|err| {
             PyValueError::new_err(format!("[A-SABR] Router creation error: {err:?}"))
         })?;
 
-        // Erase lifetime bounds for PyO3 struct storage using transmute
-        let router = unsafe { std::mem::transmute(router) };
+        // SAFETY: only the generativity lifetime `'id` is changed to `'static`;
+        // the layout is identical. The router owns its multigraph, and `INodeRef`s
+        // are never handed out of this struct, so nothing can outlive it.
+        // This does bypass the `'id` branding guarantee.
+        let router: DynRouter = unsafe { std::mem::transmute(router) };
 
         Ok(Self {
             nodes_id_map,
@@ -109,53 +137,67 @@ impl PyAsabrRouter {
         })
     }
 
+    #[pyo3(name = "set_source")]
+    fn set_source(&mut self, src: usize) -> PyResult<()> {
+        // `node_id_ref` is a Multigraph method, reached through Deref on the router.
+        let Ok(NodeRef::I(src_ref)) = self.router.node_id_ref(NodeID::from(src)) else {
+            return Err(PyValueError::new_err("[A-SABR] Router source error"));
+        };
+        self.router.set_source(src_ref).into_py_res()
+    }
 
-#[pyo3(name = "route")]
+    #[pyo3(name = "route")]
     fn route(
         &mut self,
-        source: usize,
         bundle: PyAsabrBundle,
         curr_time: Date,
         _excluded_nodes: Vec<usize>,
     ) -> Vec<(PyAsabrContact, Vec<usize>)> {
-        let native_bundle = bundle.to_native_bundle();
-
-        let Ok(NodeRef::I(src)) = self.router.node_id_ref(NodeID::from(source)) else {
-            return vec![];
-        };
-
         if bundle.destinations.is_empty() {
             return vec![];
         }
+        let native_bundle = bundle.to_native_bundle();
+        let dest_id = bundle.destinations[0];
 
-        let Ok(isdest) = self.router.node_id_ref(NodeID::from(bundle.destinations[0])) else {
+        let Ok(dest_ref) = self.router.node_id_ref(NodeID::from(dest_id)) else {
+            return vec![];
+        };
+        let Ok(dest) = dest_ref.routable() else {
             return vec![];
         };
 
-        let Ok(dest) = isdest.routable() else {
+        // A single-source router stores its source as an `INodeRef`,
+        // so bind it directly (no `NodeRef::I(..)` pattern).
+        let Ok(src) = self.router.get_source() else {
             return vec![];
         };
 
-        if let Ok(Some((path_output, _first_hop))) = self.router.route(
-            dest,
-            curr_time,
-            src,
-            &native_bundle,
-            None,
-        ) {
-            let mut py_routing_output = Vec::new();
+        // `route` mutably borrows the router for as long as `first_hop` is alive,
+        // so copy everything needed out of it before touching `self.router` again.
+        // The `_` drops the path output right at the end of this statement.
+        let Ok(Some((_, first_hop))) = self.router.route(dest, curr_time, &native_bundle, None)
+        else {
+            return vec![];
+        };
 
-            let contact = PyAsabrContact{
-                    tx_node: src.into(),
-                    rx_node: usize::from(self.router.into_nodeid(_first_hop.rx_node.into())),
-                    start_time: _first_hop.via.unwrap().send.start,
-                    end_time:  _first_hop.via.unwrap().send.end,
-             };
-             return py_routing_output;
+        let Some(via) = first_hop.via else {
+            return vec![];
+        };
+        let start_time = via.send.start;
+        let end_time = via.send.end;
+        let rx_ref = first_hop.rx_node.into();
+        // `first_hop` is no longer used: the mutable borrow of the router ends here.
 
-        } else {
-            Vec::new()
-        }
+        let contact = PyAsabrContact {
+            tx_node: usize::from(self.router.into_nodeid(src.into())),
+            rx_node: usize::from(self.router.into_nodeid(rx_ref)),
+            start_time,
+            end_time,
+        };
+
+        // The original code never pushed anything, so it always returned an empty vec.
+        // Second tuple element = destinations reached through this hop (assumption).
+        vec![(contact, vec![usize::from(dest_id)])]
     }
 
     #[pyo3(name = "get_node_id")]
