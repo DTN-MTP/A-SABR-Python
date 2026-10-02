@@ -6,16 +6,7 @@ use pyo3::{
 };
 
 use a_sabr::{
-    contact_manager::segmentation::seg::SegmentationManager,
-    contact_plan::{RealNode, from_tvgutil_file::TVGUtilContactPlan},
-    errors::ASABRError,
-    mk_router,
-    multigraph::{Multigraph, NodeRef, RoutableNodeRef},
-    node_manager::none::NoManagement,
-    pathfinding::Pathfinding,
-    types::{Date, NodeID},
-    utils::{Routing, SingeSourceRouter, make_guard},
-    vnode::VirtualNodeInfo,
+    contact_manager::segmentation::seg::SegmentationManager, contact_plan::{RealNode, from_tvgutil_file::TVGUtilContactPlan}, distance::sabr::SABR, errors::ASABRError, mk_router, multigraph::{Multigraph, NodeRef, RoutableNodeRef}, node_manager::none::NoManagement, pathfinding::Pathfinding, types::{Date, NodeID}, utils::{Routing, make_guard}, vnode::VirtualNodeInfo,
 };
 
 use crate::{py_asabr_bundle::PyAsabrBundle, py_asabr_contact::PyAsabrContact};
@@ -111,13 +102,13 @@ impl PyAsabrRouter {
         let build_router = || -> Result<_, ASABRError> {
             mk_router!(
                 id,
-                SingeSourceRouter,
                 NoManagement,
                 SegmentationManager,
                 1,
                 router_type,
                 graph,
-                args
+                args,
+                SABR
             )
         };
 
